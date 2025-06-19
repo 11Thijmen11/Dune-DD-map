@@ -506,4 +506,41 @@ document.addEventListener('DOMContentLoaded', function() {
     
     initializeGrid();
     loadMapState();
+
+    // Real-time update functies
+    let lastHash = window.location.hash;
+    
+    function checkForUpdates() {
+        const currentHash = window.location.hash;
+        if (currentHash !== lastHash) {
+            console.log('Nieuwe kaartdata gedetecteerd, bijwerken...');
+            lastHash = currentHash;
+            
+            // Laad de nieuwe kaartdata
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('has-item');
+                const icons = cell.querySelectorAll('.item-icon');
+                icons.forEach(icon => icon.remove());
+            });
+            
+            // Als er een popup open is, sluit deze
+            if (selectedCell) {
+                closePopup();
+            }
+            
+            loadMapState();
+            
+            // Toon feedback aan de gebruiker
+            showSavedFeedback('Kaart bijgewerkt!');
+        }
+    }
+
+    // Check elke 5 seconden voor updates
+    setInterval(checkForUpdates, 5000);
+
+    // Luister naar URL hash changes (voor als iemand een nieuwe URL plakt)
+    window.addEventListener('hashchange', () => {
+        lastHash = window.location.hash;
+        loadMapState();
+    });
 });
