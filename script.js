@@ -348,9 +348,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Pas de save en load functies aan
-    function saveMapState() {
-        const mapState = {};
+    // State management functies
+    function saveMapState(skipUrlUpdate = false) {
+        const mapState = {
+            grid: {},
+            notes: {},
+            shipNote: shipNoteText.value || '',
+            darkMode: document.body.classList.contains('dark-mode')
+        };
+
+        // Verzamel alle grid data
         document.querySelectorAll('.cell').forEach(cell => {
             const coordinates = cell.dataset.coordinates;
             if (cell === selectedCell) {
@@ -363,50 +370,107 @@ document.addEventListener('DOMContentLoaded', function() {
                     return null;
                 });
                 if (subCellsState.some(state => state !== null)) {
-                    mapState[coordinates] = subCellsState;
+                    mapState.grid[coordinates] = subCellsState;
                 }
             } else {
                 const subCellsState = getSavedSubCellsState(coordinates);
                 if (subCellsState) {
-                    mapState[coordinates] = subCellsState;
+                    mapState.grid[coordinates] = subCellsState;
                 }
+            }
+
+            // Sla notities op
+            const note = localStorage.getItem(`note_${coordinates}`);
+            if (note) {
+                mapState.notes[coordinates] = note;
             }
         });
 
-        // Sla op in localStorage en URL
+        // Sla op in localStorage
         localStorage.setItem('duneMapState', JSON.stringify(mapState));
-        saveStateToURL(mapState);
+
+        // Update URL alleen als nodig
+        if (!skipUrlUpdate) {
+            const stateStr = btoa(JSON.stringify(mapState));
+            if (window.location.hash !== `#${stateStr}`) {
+                window.location.hash = stateStr;
+                showSavedFeedback('Wijzigingen opgeslagen en gedeeld!');
+            }
+        }
     }
 
     function loadMapState() {
-        // Probeer eerst te laden van URL, dan van localStorage
-        const urlState = loadStateFromURL();
-        const savedState = urlState || JSON.parse(localStorage.getItem('duneMapState') || '{}');
-
-        Object.entries(savedState).forEach(([coordinates, subCellsState]) => {
-            const cell = document.querySelector(`.cell[data-coordinates="${coordinates}"]`);
-            if (cell && subCellsState) {
-                const items = subCellsState.filter(Boolean);
-                if (items.length > 0) {
-                    cell.classList.add('has-item');
-                    createOrUpdateIcon(cell, items.length === 1 ? items[0] : items, true);
-                }
+        try {
+            // Probeer eerst te laden van URL, dan van localStorage
+            let mapState;
+            const hash = window.location.hash.slice(1);
+            if (hash) {
+                mapState = JSON.parse(atob(hash));
+            } else {
+                const saved = localStorage.getItem('duneMapState');
+                mapState = saved ? JSON.parse(saved) : { grid: {}, notes: {}, shipNote: '', darkMode: false };
             }
-        });
+
+            // Reset huidige staat
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('has-item');
+                const icons = cell.querySelectorAll('.item-icon');
+                icons.forEach(icon => icon.remove());
+            });
+
+            // Laad grid data
+            Object.entries(mapState.grid || {}).forEach(([coordinates, subCellsState]) => {
+                const cell = document.querySelector(`.cell[data-coordinates="${coordinates}"]`);
+                if (cell && subCellsState) {
+                    const items = subCellsState.filter(Boolean);
+                    if (items.length > 0) {
+                        cell.classList.add('has-item');
+                        createOrUpdateIcon(cell, items.length === 1 ? items[0] : items, true);
+                    }
+                }
+            });
+
+            // Laad notities
+            Object.entries(mapState.notes || {}).forEach(([coordinates, note]) => {
+                localStorage.setItem(`note_${coordinates}`, note);
+                const cell = document.querySelector(`.cell[data-coordinates="${coordinates}"]`);
+                if (cell && note) {
+                    cell.classList.add('has-note');
+                }
+            });
+
+            // Laad schip notitie
+            if (mapState.shipNote) {
+                shipNoteText.value = mapState.shipNote;
+            }
+
+            // Laad dark mode
+            if (mapState.darkMode) {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+
+            return true;
+        } catch (e) {
+            console.error('Error loading state:', e);
+            return false;
+        }
     }
 
-    closePopupButton.addEventListener('click', function() {
-        popupOverlay.classList.remove('active');
-        selectedCell = null;
-    });
+    // Event listeners voor real-time updates
+    let saveTimeout;
+    function queueSaveState() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => saveMapState(), 500);
+    }
 
-    // Popup-legenda: selecteren van tool
-    document.querySelector('.popup-legend .legend-items').addEventListener('click', function(e) {
-        const legendItem = e.target.closest('.legend-item');
-        if (legendItem) {
-            selectTool(legendItem.dataset.type);
-        }
-    });
+    // Update notitie events
+    stickyNoteText.addEventListener('input', queueSaveState);
+    shipNoteText.addEventListener('input', queueSaveState);
+
+    // Controleer elke 2 seconden voor updates
+    setInterval(checkForUpdates, 2000);
 
     // Clear-knop is verwijderd; functionaliteit nu via subcell click (toggle)
 
@@ -542,5 +606,48 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('hashchange', () => {
         lastHash = window.location.hash;
         loadMapState();
+    });
+
+    // Drop handlers
+    function handleDrop(e, target) {
+        e.preventDefault();
+        const type = e.dataTransfer.getData('text/plain');
+        if (type) {
+            placeIcon(target, type);
+            queueSaveState(); // Direct opslaan en synchroniseren
+        }
+        target.classList.remove('drag-over');
+    }
+
+    // Click handlers voor iconen in de legenda
+    document.querySelectorAll('.legend-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const selectedSubCell = document.querySelector('.sub-cell.selected');
+            if (selectedSubCell) {
+                placeIcon(selectedSubCell, item.dataset.type);
+                queueSaveState(); // Direct opslaan en synchroniseren
+            }
+        });
+    });
+
+    // Cell note handlers
+    function handleCellNote(coordinates, note) {
+        if (note) {
+            localStorage.setItem(`note_${coordinates}`, note);
+        } else {
+            localStorage.removeItem(`note_${coordinates}`);
+        }
+        queueSaveState(); // Direct opslaan en synchroniseren
+    }
+
+    // Dark mode toggle
+    document.getElementById('toggleDarkMode').addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        queueSaveState(); // Direct opslaan en synchroniseren
+    });
+
+    // Ship note handler
+    shipNoteText.addEventListener('change', () => {
+        queueSaveState(); // Direct opslaan en synchroniseren
     });
 });
