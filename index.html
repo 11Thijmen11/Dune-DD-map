@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dune Awakening Deep Desert Map</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>    <div class="container">
+        <div class="header-with-logo">
+            <img src="images/ZandLopersLogo.png" alt="ZandLopers Logo" class="zandlopers-logo">
+            <h1>Deep Desert Map</h1>
+        </div>
+        <div class="main-content">
+            <div class="legend">
+                <h3>Legend</h3>
+                <div class="legend-items">
+                    <div class="legend-item" data-type="Base" draggable="true">
+                        <span class="legend-icon"><img src="images/Base.png" alt="Base" class="icon-image"></span>
+                        <span class="legend-text">Base</span>
+                    </div>
+                    <div class="legend-item" data-type="Lab" draggable="true">
+                        <span class="legend-icon"><img src="images/Lab.png" alt="Lab" class="icon-image"></span>
+                        <span class="legend-text">Lab</span>
+                    </div>
+                    <div class="legend-item" data-type="Ring" draggable="true">
+                        <span class="legend-icon"><img src="images/Ring.png" alt="Ring" class="icon-image"></span>
+                        <span class="legend-text">Ring</span>
+                    </div>
+                    <div class="legend-item" data-type="Stravidium" draggable="true">
+                        <span class="legend-icon"><img src="images/Stravidium.png" alt="Stravidium" class="icon-image"></span>
+                        <span class="legend-text">Stravidium</span>
+                    </div>
+                    <div class="legend-item" data-type="Titanium" draggable="true">
+                        <span class="legend-icon"><img src="images/Titanium.png" alt="Titanium" class="icon-image"></span>
+                        <span class="legend-text">Titanium</span>
+                    </div>
+                    <div class="legend-item" data-type="Wreck" draggable="true">
+                        <span class="legend-icon"><img src="images/Wreck.png" alt="Wreck" class="icon-image"></span>
+                        <span class="legend-text">Wreck</span>
+                    </div>
+                    <div class="legend-item" data-type="Control Point" draggable="true">
+                        <span class="legend-icon"><img src="images/ControlPoint.png" alt="Control Point" class="icon-image"></span>
+                        <span class="legend-text">Control Point</span>
+                    </div>
+                </div>
+                <!-- Export knop en dark mode toggle naast elkaar -->
+                <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                    <button class="tool-btn export-btn" id="exportMapBtn">Exporteer als afbeelding</button>
+                    <button class="tool-btn" id="toggleDarkMode">Dark mode</button>
+                </div>
+                <div class="collab-indicator" id="collabIndicator">🟢 Samenwerken mogelijk</div>
+            </div>
+            <div class="map-tools-wrapper">
+                <div class="map-container">
+                    <div class="coordinates x-coordinates top"></div>
+                    <div class="coordinates y-coordinates"></div>
+                    <div class="coordinates y-coordinates right"></div>
+                    <div class="grid"></div>
+                    <div class="coordinates x-coordinates bottom"></div>
+                    <div class="crashing-ship">
+                        <img src="images/CrashingShip.png" alt="Crashing Ship" id="crashingShipBtn">
+                    </div>
+                </div>
+            </div>
+            <!-- Ship note popup -->
+            <div class="ship-note-popup" id="shipNotePopup" style="display:none;">
+                <div class="popup-content">
+                    <div class="popup-header">
+                        <h3>Notitie bij Crashend Schip</h3>
+                        <button class="close-popup" id="closeShipNote">×</button>
+                    </div>
+                    <textarea id="shipNoteText" placeholder="Voeg hier je notitie toe over het crashende schip..." style="width:100%;min-height:120px;"></textarea>
+                </div>
+            </div>
+            <!-- Shai-Halud decoratie verwijderd -->
+        </div>
+    </div>
+
+    <!-- Pop-up for sub-grid -->
+    <div class="popup-overlay" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:1000;">
+        <div class="popup">            <div class="popup-header">
+                <div class="popup-title">Deep Desert Grid: <span class="popup-coordinates"></span></div>
+                <button class="info-btn" id="popupInfoBtn" title="Aantekening"><img src="images/Note.png" alt="Sticky Note" style="width:28px;height:28px;"></button>
+                <button class="close-popup">×</button>
+            </div>
+            <div class="sticky-note" id="popupStickyNote" style="display:none;">
+                <textarea id="stickyNoteText" placeholder="Aantekening voor deze cel..." style="width:100%;min-height:60px;"></textarea>
+            </div>
+            <div class="popup-content">
+                <div class="popup-grid-section">
+                    <div class="sub-grid"></div>
+                    <div class="grid-coordinates">Grid: <span class="cell-coordinates"></span></div>
+                    <div class="note-section">
+                        <label for="cellNote">Notitie bij deze gridcel:</label>
+                        <textarea id="cellNote" placeholder="Voeg hier een notitie toe..."></textarea>
+                    </div>
+                </div>                <div class="popup-legend">
+                    <div class="legend-items">
+                        <div class="legend-item" data-type="Base">
+                            <span class="legend-icon"><img src="images/Base.png" alt="Base" class="icon-image"></span>
+                            <span class="legend-text">Base</span>
+                        </div>
+                        <div class="legend-item" data-type="Lab">
+                            <span class="legend-icon"><img src="images/Lab.png" alt="Lab" class="icon-image"></span>
+                            <span class="legend-text">Lab</span>
+                        </div>
+                        <div class="legend-item" data-type="Ring">
+                            <span class="legend-icon"><img src="images/Ring.png" alt="Ring" class="icon-image"></span>
+                            <span class="legend-text">Ring</span>
+                        </div>
+                        <div class="legend-item" data-type="Stravidium">
+                            <span class="legend-icon"><img src="images/Stravidium.png" alt="Stravidium" class="icon-image"></span>
+                            <span class="legend-text">Stravidium</span>
+                        </div>
+                        <div class="legend-item" data-type="Titanium">
+                            <span class="legend-icon"><img src="images/Titanium.png" alt="Titanium" class="icon-image"></span>
+                            <span class="legend-text">Titanium</span>
+                        </div>
+                        <div class="legend-item" data-type="Wreck">
+                            <span class="legend-icon"><img src="images/Wreck.png" alt="Wreck" class="icon-image"></span>
+                            <span class="legend-text">Wreck</span>
+                        </div>
+                        <div class="legend-item" data-type="Control Point">
+                            <span class="legend-icon"><img src="images/ControlPoint.png" alt="Control Point" class="icon-image"></span>
+                            <span class="legend-text">Control Point</span>
+                        </div>
+                    </div>
+            </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
