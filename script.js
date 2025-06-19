@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const popupLegendItems = document.querySelectorAll('.popup-legend .legend-item');
     let selectedCell = null;
     let selectedTool = null;
+    let lastPopupCell = null;
 
     // Init grid
     const letters = ['I', 'H', 'G', 'F', 'E', 'D', 'C', 'B', 'A'];
@@ -271,6 +272,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         stickyNote.style.display = 'none';
         openPopup();
+        // Direct main grid iconen updaten bij openen popup
+        updateMainCellDisplay();
     }
 
     function updateMainCellDisplay() {
@@ -348,129 +351,71 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // State management functies
-    function saveMapState(skipUrlUpdate = false) {
-        const mapState = {
-            grid: {},
-            notes: {},
-            shipNote: shipNoteText.value || '',
-            darkMode: document.body.classList.contains('dark-mode')
-        };
-
-        // Verzamel alle grid data
+    // Pas de save en load functies aan
+    function saveMapState() {
+        const mapState = {};
         document.querySelectorAll('.cell').forEach(cell => {
             const coordinates = cell.dataset.coordinates;
+            let subCellsState = null;
             if (cell === selectedCell) {
                 const subCells = Array.from(popupSubGrid.querySelectorAll('.sub-cell'));
-                const subCellsState = subCells.map(subCell => {
+                subCellsState = subCells.map(subCell => {
                     if (subCell.classList.contains('has-item')) {
                         const icon = subCell.querySelector('.item-icon img');
                         return icon ? icon.alt : null;
                     }
                     return null;
                 });
-                if (subCellsState.some(state => state !== null)) {
-                    mapState.grid[coordinates] = subCellsState;
-                }
             } else {
-                const subCellsState = getSavedSubCellsState(coordinates);
-                if (subCellsState) {
-                    mapState.grid[coordinates] = subCellsState;
-                }
+                subCellsState = getSavedSubCellsState(coordinates);
             }
-
-            // Sla notities op
-            const note = localStorage.getItem(`note_${coordinates}`);
-            if (note) {
-                mapState.notes[coordinates] = note;
+            if (subCellsState && subCellsState.some(state => state !== null)) {
+                mapState[coordinates] = subCellsState;
             }
         });
-
-        // Sla op in localStorage
+        // Sla op in localStorage en URL
         localStorage.setItem('duneMapState', JSON.stringify(mapState));
-
-        // Update URL alleen als nodig
-        if (!skipUrlUpdate) {
-            const stateStr = btoa(JSON.stringify(mapState));
-            if (window.location.hash !== `#${stateStr}`) {
-                window.location.hash = stateStr;
-                showSavedFeedback('Wijzigingen opgeslagen en gedeeld!');
-            }
-        }
+        saveStateToURL(mapState);
     }
 
     function loadMapState() {
-        try {
-            // Probeer eerst te laden van URL, dan van localStorage
-            let mapState;
-            const hash = window.location.hash.slice(1);
-            if (hash) {
-                mapState = JSON.parse(atob(hash));
-            } else {
-                const saved = localStorage.getItem('duneMapState');
-                mapState = saved ? JSON.parse(saved) : { grid: {}, notes: {}, shipNote: '', darkMode: false };
-            }
+        // Probeer eerst te laden van URL, dan van localStorage
+        const urlState = loadStateFromURL();
+        const savedState = urlState || JSON.parse(localStorage.getItem('duneMapState') || '{}');
 
-            // Reset huidige staat
-            document.querySelectorAll('.cell').forEach(cell => {
-                cell.classList.remove('has-item');
-                const icons = cell.querySelectorAll('.item-icon');
-                icons.forEach(icon => icon.remove());
-            });
+        // Reset alle cellen
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.classList.remove('has-item');
+            let icon = cell.querySelector('.item-icon');
+            if (icon) icon.remove();
+            let stickyIcon = cell.querySelector('.sticky-note-icon');
+            if (stickyIcon) stickyIcon.remove();
+        });
 
-            // Laad grid data
-            Object.entries(mapState.grid || {}).forEach(([coordinates, subCellsState]) => {
-                const cell = document.querySelector(`.cell[data-coordinates="${coordinates}"]`);
-                if (cell && subCellsState) {
-                    const items = subCellsState.filter(Boolean);
-                    if (items.length > 0) {
-                        cell.classList.add('has-item');
-                        createOrUpdateIcon(cell, items.length === 1 ? items[0] : items, true);
-                    }
+        Object.entries(savedState).forEach(([coordinates, subCellsState]) => {
+            const cell = document.querySelector(`.cell[data-coordinates="${coordinates}"]`);
+            if (cell && subCellsState) {
+                const items = subCellsState.filter(Boolean);
+                if (items.length > 0) {
+                    cell.classList.add('has-item');
+                    createOrUpdateIcon(cell, items.length === 1 ? items[0] : items, true);
                 }
-            });
-
-            // Laad notities
-            Object.entries(mapState.notes || {}).forEach(([coordinates, note]) => {
-                localStorage.setItem(`note_${coordinates}`, note);
-                const cell = document.querySelector(`.cell[data-coordinates="${coordinates}"]`);
-                if (cell && note) {
-                    cell.classList.add('has-note');
-                }
-            });
-
-            // Laad schip notitie
-            if (mapState.shipNote) {
-                shipNoteText.value = mapState.shipNote;
             }
+        });
+    }
 
-            // Laad dark mode
-            if (mapState.darkMode) {
-                document.body.classList.add('dark-mode');
-            } else {
-                document.body.classList.remove('dark-mode');
-            }
+    closePopupButton.addEventListener('click', function() {
+        popupOverlay.classList.remove('active');
+        selectedCell = null;
+    });
 
-            return true;
-        } catch (e) {
-            console.error('Error loading state:', e);
-            return false;
+    // Popup-legenda: selecteren van tool
+    document.querySelector('.popup-legend .legend-items').addEventListener('click', function(e) {
+        const legendItem = e.target.closest('.legend-item');
+        if (legendItem) {
+            selectTool(legendItem.dataset.type);
         }
-    }
-
-    // Event listeners voor real-time updates
-    let saveTimeout;
-    function queueSaveState() {
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(() => saveMapState(), 500);
-    }
-
-    // Update notitie events
-    stickyNoteText.addEventListener('input', queueSaveState);
-    shipNoteText.addEventListener('input', queueSaveState);
-
-    // Controleer elke 2 seconden voor updates
-    setInterval(checkForUpdates, 2000);
+    });
 
     // Clear-knop is verwijderd; functionaliteit nu via subcell click (toggle)
 
@@ -496,26 +441,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Schip animatie functionaliteit
-    function setupShipAnimation() {
-        const ship = document.querySelector('.crashing-ship');
-        if (!ship) return;
-        
-        function startAnimation() {
-            ship.classList.remove('animate');
-            void ship.offsetWidth; // Force reflow
-            ship.classList.add('animate');
-        }
-
-        // Start de animatie meteen bij laden
-        startAnimation();
-        
-        // Herhaal de animatie elke 10 seconden
-        setInterval(startAnimation, 10000);
+    // Sticky note functionaliteit
+    const infoBtn = document.getElementById('popupInfoBtn');
+    const stickyNote = document.getElementById('popupStickyNote');
+    const stickyNoteText = document.getElementById('stickyNoteText');
+    let currentStickyKey = null;
+    if (infoBtn && stickyNote && stickyNoteText) {
+        infoBtn.addEventListener('click', function() {
+            stickyNote.style.display = stickyNote.style.display === 'none' ? 'block' : 'none';
+        });
+        stickyNoteText.addEventListener('input', function() {
+            if (currentStickyKey) {
+                localStorage.setItem(currentStickyKey, stickyNoteText.value);
+            }
+        });
     }
 
-    setupShipAnimation();
-    
     // Ship note functionaliteit
     const crashingShipBtn = document.getElementById('crashingShipBtn');
     const shipNotePopup = document.getElementById('shipNotePopup');
@@ -524,74 +465,85 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (crashingShipBtn && shipNotePopup && closeShipNote && shipNoteText) {
         // Laad bestaande notitie
-        const savedShipNote = localStorage.getItem('shipNote');
-        if (savedShipNote) {
-            shipNoteText.value = savedShipNote;
-        }
+        shipNoteText.value = localStorage.getItem('shipNote') || '';
         
         // Open popup bij klik op schip
         crashingShipBtn.addEventListener('click', function() {
             shipNotePopup.style.display = 'block';
-            shipNotePopup.classList.add('fadeIn');
         });
         
         // Sluit popup
         closeShipNote.addEventListener('click', function() {
-            shipNotePopup.classList.remove('fadeIn');
-            shipNotePopup.classList.add('fadeOut');
-            setTimeout(() => {
-                shipNotePopup.style.display = 'none';
-                shipNotePopup.classList.remove('fadeOut');
-            }, 300);
+            shipNotePopup.style.display = 'none';
         });
         
         // Sla notitie op bij typen
         shipNoteText.addEventListener('input', function() {
-            localStorage.setItem('shipNote', this.value);
-            queueSaveState();
+            localStorage.setItem('shipNote', shipNoteText.value);
+            showSaveFeedback(); // Gebruik dezelfde feedback als bij andere notities
         });
-    }
-
-    // Drop handlers
-    function handleDrop(e, target) {
-        e.preventDefault();
-        const type = e.dataTransfer.getData('text/plain');
-        if (type) {
-            placeIcon(target, type);
-            queueSaveState(); // Direct opslaan en synchroniseren
-        }
-        target.classList.remove('drag-over');
-    }
-
-    // Click handlers voor iconen in de legenda
-    document.querySelectorAll('.legend-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const selectedSubCell = document.querySelector('.sub-cell.selected');
-            if (selectedSubCell) {
-                placeIcon(selectedSubCell, item.dataset.type);
-                queueSaveState(); // Direct opslaan en synchroniseren
+        
+        // Sluit popup bij klik buiten
+        document.addEventListener('click', function(e) {
+            if (shipNotePopup.style.display === 'block' && 
+                !shipNotePopup.contains(e.target) && 
+                e.target !== crashingShipBtn) {
+                shipNotePopup.style.display = 'none';
             }
         });
-    });
-
-    // Cell note handlers
-    function handleCellNote(coordinates, note) {
-        if (note) {
-            localStorage.setItem(`note_${coordinates}`, note);
-        } else {
-            localStorage.removeItem(`note_${coordinates}`);
-        }
-        queueSaveState(); // Direct opslaan en synchroniseren
     }
 
-    // Dark mode toggle
-    document.getElementById('toggleDarkMode').addEventListener('click', () => {
-        document.body.classList.toggle('dark-mode');
-        queueSaveState(); // Direct opslaan en synchroniseren
-    });
+    // Animatie van het crashende schip is verwijderd
+    
+    initializeGrid();
+    loadMapState();
 
-    // Ship note handler
-    shipNoteText.addEventListener('change', () => {
-        queueSaveState(); // Direct opslaan en synchroniseren
+    // Real-time update functies
+    let lastHash = window.location.hash;
+    function showSavedFeedback(msg) {
+        let feedback = document.getElementById('savedFeedback');
+        if (!feedback) {
+            feedback = document.createElement('div');
+            feedback.id = 'savedFeedback';
+            feedback.style.position = 'fixed';
+            feedback.style.top = '30px';
+            feedback.style.left = '50%';
+            feedback.style.transform = 'translateX(-50%)';
+            feedback.style.background = '#222';
+            feedback.style.color = '#fff';
+            feedback.style.padding = '10px 24px';
+            feedback.style.borderRadius = '8px';
+            feedback.style.zIndex = '9999';
+            feedback.style.fontSize = '1.2em';
+            document.body.appendChild(feedback);
+        }
+        feedback.textContent = msg || 'Saved!!';
+        feedback.style.display = 'block';
+        setTimeout(() => { feedback.style.display = 'none'; }, 1200);
+    }
+
+    function checkForUpdates() {
+        const currentHash = window.location.hash;
+        if (currentHash !== lastHash) {
+            lastHash = currentHash;
+            // Laad de nieuwe kaartdata
+            if (selectedCell) closePopup();
+            loadMapState();
+            showSavedFeedback('Kaart bijgewerkt!');
+            // Dark mode sync
+            const urlState = loadStateFromURL();
+            if (urlState && typeof urlState.dark !== 'undefined') {
+                if (urlState.dark) {
+                    document.body.classList.add('dark-mode');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                }
+            }
+        }
+    }
+    setInterval(checkForUpdates, 5000);
+    window.addEventListener('hashchange', () => {
+        lastHash = window.location.hash;
+        loadMapState();
     });
 });
