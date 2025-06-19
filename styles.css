@@ -169,7 +169,7 @@ img[alt="Control Point"].icon-image {
     position: relative;
     padding: 40px;
     width: 600px;
-    aspect-ratio: 1;
+    height: 600px;
     background: rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
@@ -177,6 +177,7 @@ img[alt="Control Point"].icon-image {
     display: flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
 }
 
 body.dark-mode .map-container {
@@ -184,6 +185,7 @@ body.dark-mode .map-container {
 }
 
 .grid {
+    position: relative;
     display: grid;
     grid-template-columns: repeat(9, 1fr);
     gap: 2px;
@@ -191,9 +193,7 @@ body.dark-mode .map-container {
     padding: 2px;
     border-radius: 4px;
     width: 100%;
-    aspect-ratio: 1;
-    position: relative;
-    z-index: 1;
+    height: 100%;
 }
 
 .cell {
@@ -206,8 +206,6 @@ body.dark-mode .map-container {
     justify-content: center;
     transition: all 0.3s ease;
     position: relative;
-    min-width: 0;
-    min-height: 0;
 }
 
 body.dark-mode .cell,
@@ -263,15 +261,24 @@ body.dark-mode .sub-cell {
 .coordinates {
     position: absolute;
     display: flex;
-    gap: 2px;
     pointer-events: none;
+    z-index: 1;
 }
 
 .x-coordinates {
     left: 40px;
-    right: 0;
+    right: 40px;
     bottom: 10px;
     justify-content: space-around;
+}
+
+.x-coordinates.top {
+    bottom: auto;
+    top: 10px;
+}
+
+.x-coordinates.bottom {
+    bottom: 5px;
 }
 
 .y-coordinates {
@@ -280,6 +287,15 @@ body.dark-mode .sub-cell {
     left: 10px;
     flex-direction: column;
     justify-content: space-around;
+}
+
+.y-coordinates:not(.right) {
+    left: 5px;
+}
+
+.y-coordinates.right {
+    left: auto;
+    right: 10px;
 }
 
 .coordinate-label {
@@ -777,23 +793,14 @@ body.dark-mode .sticky-note textarea {
     background: linear-gradient(135deg, #ffe066 60%, #fffbe6 100%);
 }
 
-/* Crashing ship animatie */
-@keyframes shipCrash {
-    0% {
-        transform: translate(0, -100%) rotate(-25deg);
-        opacity: 0;
-    }
-    100% {
-        transform: translate(-80px, 100px) rotate(-25deg);
-        opacity: 1;
-    }
-}
-
+/* Crashend schip styling */
 .crashing-ship {
     position: absolute;
     right: -120px;
     top: 20px;
     z-index: 2;
+    transform: translate(0, -100%) rotate(-25deg);
+    opacity: 0;
 }
 
 .crashing-ship.animate {
@@ -812,123 +819,63 @@ body.dark-mode .sticky-note textarea {
     filter: drop-shadow(0 0 10px rgba(211, 84, 0, 0.5));
 }
 
-/* Ship note popup styling */
-.ship-note-popup {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--desert-sand);
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    z-index: 2000;
-    width: 400px;
+@keyframes shipCrash {
+    0% {
+        transform: translate(0, -100%) rotate(-25deg);
+        opacity: 0;
+    }
+    100% {
+        transform: translate(-80px, 100px) rotate(-25deg);
+        opacity: 1;
+    }
 }
 
-.ship-note-popup .popup-header {
+/* Cell styling verbetering */
+.cell {
+    aspect-ratio: 1;
+    background-color: var(--desert-sand);
+    border: 1px solid var(--dark-sand);
+    cursor: pointer;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-}
-
-.ship-note-popup h3 {
-    margin: 0;
-    color: var(--dune-orange);
-}
-
-.ship-note-popup textarea {
-    width: 100%;
-    padding: 10px;
-    border: 2px solid var(--dark-sand);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.9);
-    font-family: inherit;
-    resize: vertical;
-}
-
-body.dark-mode .ship-note-popup {
-    background: #23272e;
-    color: #f5f6fa;
-}
-
-body.dark-mode .ship-note-popup textarea {
-    background: #2c2f36;
-    color: #f5f6fa;
-    border-color: #444;
-}
-
-/* Main layout fixes */
-.main-content {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
     justify-content: center;
-    flex-wrap: wrap;
-    padding: 20px;
+    transition: all 0.3s ease;
     position: relative;
 }
 
-.map-tools-wrapper {
-    flex: 1;
-    min-width: 300px;
-    max-width: 800px;
+.cell:hover {
+    background-color: rgba(211, 84, 0, 0.2);
+}
+
+/* Coordinaten labels fix */
+.coordinates {
+    position: absolute;
     display: flex;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.x-coordinates {
+    left: 40px;
+    right: 40px;
+    bottom: 10px;
+    justify-content: space-around;
+}
+
+.x-coordinates.top {
+    bottom: auto;
+    top: 10px;
+}
+
+.y-coordinates {
+    top: 40px;
+    bottom: 40px;
+    left: 10px;
     flex-direction: column;
-    align-items: center;
+    justify-content: space-around;
 }
 
-/* Responsive fixes */
-@media (max-width: 768px) {
-    .map-container {
-        width: 100%;
-        padding: 20px;
-    }
-    
-    .legend {
-        width: 100%;
-        max-width: none;
-    }
-    
-    .popup {
-        width: 95%;
-        margin: 10px;
-        padding: 10px;
-    }
-}
-
-/* Fix icon positioning */
-.item-icon {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-}
-
-.item-icon img {
-    max-width: 80%;
-    max-height: 80%;
-    object-fit: contain;
-}
-
-/* Animation fixes */
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.fadeIn {
-    animation: fadeIn 0.3s ease-in-out;
-}
-
-@keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-}
-
-.fadeOut {
-    animation: fadeOut 0.3s ease-in-out;
+.y-coordinates.right {
+    left: auto;
+    right: 10px;
 }

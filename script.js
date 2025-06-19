@@ -496,66 +496,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Sticky note functionaliteit
-    const infoBtn = document.getElementById('popupInfoBtn');
-    const stickyNote = document.getElementById('popupStickyNote');
-    const stickyNoteText = document.getElementById('stickyNoteText');
-    let currentStickyKey = null;
-    if (infoBtn && stickyNote && stickyNoteText) {
-        infoBtn.addEventListener('click', function() {
-            stickyNote.style.display = stickyNote.style.display === 'none' ? 'block' : 'none';
-        });
-        stickyNoteText.addEventListener('input', function() {
-            if (currentStickyKey) {
-                localStorage.setItem(currentStickyKey, stickyNoteText.value);
-            }
-        });
-    }
-
-    // Ship note functionaliteit
-    const crashingShipBtn = document.getElementById('crashingShipBtn');
-    const shipNotePopup = document.getElementById('shipNotePopup');
-    const closeShipNote = document.getElementById('closeShipNote');
-    const shipNoteText = document.getElementById('shipNoteText');
-    
-    if (crashingShipBtn && shipNotePopup && closeShipNote && shipNoteText) {
-        // Laad bestaande notitie
-        shipNoteText.value = localStorage.getItem('shipNote') || '';
-        
-        // Open popup bij klik op schip
-        crashingShipBtn.addEventListener('click', function() {
-            shipNotePopup.style.display = 'block';
-        });
-        
-        // Sluit popup
-        closeShipNote.addEventListener('click', function() {
-            shipNotePopup.style.display = 'none';
-        });
-        
-        // Sla notitie op bij typen
-        shipNoteText.addEventListener('input', function() {
-            localStorage.setItem('shipNote', shipNoteText.value);
-            showSaveFeedback(); // Gebruik dezelfde feedback als bij andere notities
-        });
-        
-        // Sluit popup bij klik buiten
-        document.addEventListener('click', function(e) {
-            if (shipNotePopup.style.display === 'block' && 
-                !shipNotePopup.contains(e.target) && 
-                e.target !== crashingShipBtn) {
-                shipNotePopup.style.display = 'none';
-            }
-        });
-    }
-
     // Schip animatie functionaliteit
     function setupShipAnimation() {
         const ship = document.querySelector('.crashing-ship');
+        if (!ship) return;
         
         function startAnimation() {
             ship.classList.remove('animate');
-            // Force reflow
-            void ship.offsetWidth;
+            void ship.offsetWidth; // Force reflow
             ship.classList.add('animate');
         }
 
@@ -568,45 +516,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setupShipAnimation();
     
-    initializeGrid();
-    loadMapState();
-
-    // Real-time update functies
-    let lastHash = window.location.hash;
+    // Ship note functionaliteit
+    const crashingShipBtn = document.getElementById('crashingShipBtn');
+    const shipNotePopup = document.getElementById('shipNotePopup');
+    const closeShipNote = document.getElementById('closeShipNote');
+    const shipNoteText = document.getElementById('shipNoteText');
     
-    function checkForUpdates() {
-        const currentHash = window.location.hash;
-        if (currentHash !== lastHash) {
-            console.log('Nieuwe kaartdata gedetecteerd, bijwerken...');
-            lastHash = currentHash;
-            
-            // Laad de nieuwe kaartdata
-            document.querySelectorAll('.cell').forEach(cell => {
-                cell.classList.remove('has-item');
-                const icons = cell.querySelectorAll('.item-icon');
-                icons.forEach(icon => icon.remove());
-            });
-            
-            // Als er een popup open is, sluit deze
-            if (selectedCell) {
-                closePopup();
-            }
-            
-            loadMapState();
-            
-            // Toon feedback aan de gebruiker
-            showSavedFeedback('Kaart bijgewerkt!');
+    if (crashingShipBtn && shipNotePopup && closeShipNote && shipNoteText) {
+        // Laad bestaande notitie
+        const savedShipNote = localStorage.getItem('shipNote');
+        if (savedShipNote) {
+            shipNoteText.value = savedShipNote;
         }
+        
+        // Open popup bij klik op schip
+        crashingShipBtn.addEventListener('click', function() {
+            shipNotePopup.style.display = 'block';
+            shipNotePopup.classList.add('fadeIn');
+        });
+        
+        // Sluit popup
+        closeShipNote.addEventListener('click', function() {
+            shipNotePopup.classList.remove('fadeIn');
+            shipNotePopup.classList.add('fadeOut');
+            setTimeout(() => {
+                shipNotePopup.style.display = 'none';
+                shipNotePopup.classList.remove('fadeOut');
+            }, 300);
+        });
+        
+        // Sla notitie op bij typen
+        shipNoteText.addEventListener('input', function() {
+            localStorage.setItem('shipNote', this.value);
+            queueSaveState();
+        });
     }
-
-    // Check elke 5 seconden voor updates
-    setInterval(checkForUpdates, 5000);
-
-    // Luister naar URL hash changes (voor als iemand een nieuwe URL plakt)
-    window.addEventListener('hashchange', () => {
-        lastHash = window.location.hash;
-        loadMapState();
-    });
 
     // Drop handlers
     function handleDrop(e, target) {
